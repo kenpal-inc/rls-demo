@@ -14,6 +14,9 @@ docker compose -f docker/compose.yml up -d
 cp .env.example .env
 
 uv run alembic upgrade head
+
+uv run fastapi dev # dev server
+uv run fastapi run # prod server
 ```
 
 ## hist
@@ -31,4 +34,6 @@ uv run alembic revision --rev-id 0002 -m "create role"
 uv run alembic revision --rev-id 0003 -m "create tables"
 uv run alembic revision --rev-id 0004 -m "add privileges"
 uv run alembic revision --rev-id 0005 -m "create app user"
+
+uv add "fastapi[standard]"
 ```
