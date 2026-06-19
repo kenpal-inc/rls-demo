@@ -31,6 +31,7 @@ def upgrade() -> None:
         ),
     )
     op.execute("ALTER TABLE m_organizations ENABLE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE m_organizations FORCE ROW LEVEL SECURITY")
 
     op.create_table(
         "m_users",
@@ -47,6 +48,7 @@ def upgrade() -> None:
         ),
     )
     op.execute("ALTER TABLE m_users ENABLE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE m_users FORCE ROW LEVEL SECURITY")
 
     op.create_table(
         "t_tasks",
@@ -67,6 +69,7 @@ def upgrade() -> None:
         ),
     )
     op.execute("ALTER TABLE t_tasks ENABLE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE t_tasks FORCE ROW LEVEL SECURITY")
 
 
 def downgrade() -> None:
