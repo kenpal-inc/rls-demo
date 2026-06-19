@@ -2,38 +2,47 @@
 
 RLS を利用したマルチテナント運用のデモ
 
+- super\
+  スーパーユーザーとして、全てのテナントにアクセス・操作可能
+- operator\
+  運用オペレーターとして、全てのテナントにアクセス可能
+- admin\
+  テナント管理者として、所属するテナントにアクセス・操作可能
+- general\
+  一般ユーザーとして、所属するテナントにアクセス可能\
+  制限された操作のみ可能
+
 ## setup
 
-- docker
-- python
+以下がインストール済みを前提とする
+
+- Docker
+- Python
 - uv
+
+環境変数ファイルの生成
+
+```shell
+cp .env.example .env
+```
+
+PostgreSQL docker コンテナの起動
 
 ```shell
 docker compose -f docker/compose.yml up -d
+```
 
-cp .env.example .env
+DB の初期化
 
+```shell
 uv run alembic upgrade head
+```
 
+FastAPI サーバの起動
+
+```shell
 uv run fastapi dev # dev server
 uv run fastapi run # prod server
 ```
 
-## hist
-
-```shell
-uv init
-
-uv add alembic "psycopg[binary]"
-uv add --dev ruff
-
-uv run alembic init alembic
-
-uv run alembic revision --rev-id 0001 -m "enable PostGIS"
-uv run alembic revision --rev-id 0002 -m "create role"
-uv run alembic revision --rev-id 0003 -m "create tables"
-uv run alembic revision --rev-id 0004 -m "add privileges"
-uv run alembic revision --rev-id 0005 -m "create app user"
-
-uv add "fastapi[standard]"
-```
+<http://127.0.0.1:8000/docs> で API ドキュメントを確認可能
