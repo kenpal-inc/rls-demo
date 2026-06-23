@@ -46,3 +46,12 @@ uv run fastapi run # prod server
 ```
 
 <http://127.0.0.1:8000/docs> で API ドキュメントを確認可能
+
+## test
+
+テナント分離の検証テスト\
+マイグレーション適用済みを前提とする
+
+```shell
+uv run pytest
+```
