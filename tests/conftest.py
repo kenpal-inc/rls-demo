@@ -1,9 +1,33 @@
 from contextlib import contextmanager
+import os
 from typing import Iterator
+from urllib.parse import urlsplit
 
+import psycopg
 import pytest
+from psycopg.rows import dict_row
 
 from src.db import Principal, rls_session
+
+
+@contextmanager
+def setup_session() -> Iterator[psycopg.Cursor]:
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url:
+        raise RuntimeError("DATABASE_URL environment variable is required")
+
+    parts = urlsplit(database_url)
+    conninfo = {
+        "host": parts.hostname or "localhost",
+        "port": parts.port or 5432,
+        "dbname": parts.path.lstrip("/") or "postgres",
+        "user": parts.username,
+        "password": parts.password,
+    }
+
+    with psycopg.connect(**conninfo, row_factory=dict_row) as conn:
+        with conn.cursor() as cur:
+            yield cur
 
 
 @contextmanager
@@ -17,17 +41,17 @@ def fetch_all(principal: Principal, sql: str) -> Iterator[list[dict]]:
 @pytest.fixture
 def seed() -> dict:
     """
-    各テストの前に super 権限でデータを作り直し、生成された seq を返す
+    各テストの前に DB 管理接続でデータを作り直し、生成された seq を返す
 
     - 2 つのテナントを作成
     - 各テナントに admin と general それぞれのユーザーを作成
     - 各ユーザーが 1 件ずつタスクを保有
     """
 
-    with rls_session(Principal(role="super")) as cur:
-        cur.execute("DELETE FROM t_tasks")
-        cur.execute("DELETE FROM m_users")
-        cur.execute("DELETE FROM m_organizations")
+    with setup_session() as cur:
+        cur.execute(
+            "TRUNCATE t_tasks, m_users, m_organizations RESTART IDENTITY"
+        )
 
         def add_org(name: str) -> int:
             cur.execute(
