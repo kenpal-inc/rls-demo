@@ -39,7 +39,6 @@ def upgrade() -> None:
         sa.Column(
             "company_seq",
             sa.Integer,
-            sa.ForeignKey("m_organizations.company_seq"),
             nullable=False,
         ),
         sa.Column("user_name", sa.String(255), nullable=False),
@@ -56,12 +55,9 @@ def upgrade() -> None:
         sa.Column(
             "company_seq",
             sa.Integer,
-            sa.ForeignKey("m_organizations.company_seq"),
             nullable=False,
         ),
-        sa.Column(
-            "owner_seq", sa.Integer, sa.ForeignKey("m_users.user_seq"), nullable=False
-        ),
+        sa.Column("owner_seq", sa.Integer, nullable=False),
         sa.Column("task_name", sa.String(255), nullable=False),
         sa.Column("task_description", sa.Text, nullable=True),
         sa.Column(
