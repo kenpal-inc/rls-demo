@@ -55,3 +55,11 @@ uv run fastapi run # prod server
 ```shell
 uv run pytest
 ```
+
+RLS ポリシーの確認
+
+```shell
+uv run psql \
+  -h localhost -p 5432 -U postgres -d postgres \
+  -f sql/select-policies.sql
+```
