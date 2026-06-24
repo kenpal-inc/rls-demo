@@ -45,6 +45,7 @@ def upgrade() -> None:
         sa.Column(
             "created_at", sa.DateTime, nullable=False, server_default=sa.func.now()
         ),
+        sa.Index("idx_m_users_company_seq", "company_seq"),
     )
     op.execute("ALTER TABLE m_users ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE m_users FORCE ROW LEVEL SECURITY")
@@ -63,6 +64,8 @@ def upgrade() -> None:
         sa.Column(
             "created_at", sa.DateTime, nullable=False, server_default=sa.func.now()
         ),
+        sa.Index("idx_t_tasks_company_seq", "company_seq"),
+        sa.Index("idx_t_tasks_owner_seq", "owner_seq"),
     )
     op.execute("ALTER TABLE t_tasks ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE t_tasks FORCE ROW LEVEL SECURITY")
