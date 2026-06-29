@@ -4,9 +4,10 @@ SELECT schemaname,
   permissive,
   roles,
   cmd,
-  qual,
   -- USING 句
-  with_check -- WITH CHECK 句
+  qual,
+  -- WITH CHECK 句
+  with_check
 FROM pg_policies
 ORDER BY tablename,
   policyname;
