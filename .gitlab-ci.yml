@@ -1,0 +1,99 @@
+# RLS 事故防止パイプライン
+#
+# ローカル検証:
+#   gitlab-ci-local            # 全ジョブを実行
+#   gitlab-ci-local verify     # verify ジョブのみ
+#   gitlab-ci-local deploy     # deploy ジョブのみ
+
+stages:
+  - verify # CI:dev
+  - deploy # CD:prod
+
+.base:
+  image: ghcr.io/astral-sh/uv:python3.14-bookworm-slim
+  services:
+    - name: postgres:16
+      alias: postgres
+  # NOTE: dev/prod で必要に応じて変更の必要あり
+  variables:
+    # postgres
+    POSTGRES_DB: postgres
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+    APP_USER_PASSWORD: app_user_password
+    # alembic
+    DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/postgres"
+    # psql / pg_isready
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGUSER: postgres
+    PGPASSWORD: postgres
+    PGDATABASE: postgres
+    # uv
+    UV_CACHE_DIR: .uv-cache
+  cache:
+    key: uv-cache
+    paths:
+      - .uv-cache
+  before_script:
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-client
+    - uv sync --frozen
+    # postgres サービスの起動待ち
+    - |
+      for i in $(seq 1 60); do
+        pg_isready -q && break
+        echo "waiting for database... ($i/60)"
+        sleep 1
+      done
+      pg_isready
+
+verify:
+  stage: verify
+  extends: .base
+  script:
+    # db 初期化
+    - uv run alembic upgrade head
+    # RLS ポリシー設定チェック
+    - |
+      rows=$(psql -tA -f sql/check-rls-coverage.sql)
+      if [ -n "$rows" ]; then
+        echo "RLS 設定が不十分なテーブルを検出しました:" >&2
+        echo "$rows" >&2
+        exit 1
+      fi
+      echo "OK: company_seq を持つ全テーブルで RLS が有効・強制・ポリシー有り"
+    # 自動テスト実行
+    - uv run pytest -v
+    # 適用 RLS ポリシーを出力
+    - psql --csv -f sql/select-policies.sql | tee policies-dev.csv
+  artifacts:
+    name: rls-policies-dev
+    paths:
+      - policies-dev.csv
+    expire_in: 1 week
+
+deploy:
+  stage: deploy
+  extends: .base
+  script:
+    # migration 実行
+    - uv run alembic upgrade head
+    # 適用 RLS ポリシーを出力
+    - psql --csv -f sql/select-policies.sql | tee policies-prod.csv
+    # 適用 RLS ポリシーの差分を確認
+    - |
+      if diff -u policies-dev.csv policies-prod.csv; then
+        echo "OK: dev と prod の RLS ポリシーは一致しています"
+      else
+        echo "NG: dev と prod で RLS ポリシーに差分があります" >&2
+        exit 1
+      fi
+  artifacts:
+    name: rls-policies-prod
+    paths:
+      - policies-prod.csv
+    expire_in: 1 week
+  # デフォルトブランチ/タグや手動実行に限定する:
+  # rules:
+  #   - if: '$CI_COMMIT_BRANCH == "main"'
+  #     when: manual

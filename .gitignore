@@ -12,3 +12,9 @@ wheels/
 # env files
 .env*
 !.env.example
+
+# gitlab-ci-local の状態・成果物
+.gitlab-ci-local/
+.uv-cache/
+policies-dev.csv
+policies-prod.csv
