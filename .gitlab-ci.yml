@@ -11,25 +11,7 @@ stages:
 
 .base:
   image: ghcr.io/astral-sh/uv:python3.14-bookworm-slim
-  services:
-    - name: postgres:16
-      alias: postgres
-  # NOTE: dev/prod で必要に応じて変更の必要あり
   variables:
-    # postgres
-    POSTGRES_DB: postgres
-    POSTGRES_USER: postgres
-    POSTGRES_PASSWORD: postgres
-    APP_USER_PASSWORD: app_user_password
-    # alembic
-    DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/postgres"
-    # psql / pg_isready
-    PGHOST: postgres
-    PGPORT: "5432"
-    PGUSER: postgres
-    PGPASSWORD: postgres
-    PGDATABASE: postgres
-    # uv
     UV_CACHE_DIR: .uv-cache
   cache:
     key: uv-cache
@@ -38,6 +20,18 @@ stages:
   before_script:
     - apt-get update -qq && apt-get install -y -qq --no-install-recommends postgresql-client
     - uv sync --frozen
+
+.ci-db:
+  extends: .base
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    POSTGRES_DB: postgres
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: postgres
+  before_script:
+    - !reference [.base, before_script]
     # postgres サービスの起動待ち
     - |
       for i in $(seq 1 60); do
@@ -49,7 +43,15 @@ stages:
 
 verify:
   stage: verify
-  extends: .base
+  extends: .ci-db
+  variables:
+    DATABASE_URL: "postgresql+psycopg://postgres:postgres@postgres:5432/postgres"
+    PGHOST: postgres
+    PGPORT: "5432"
+    PGUSER: postgres
+    PGPASSWORD: postgres
+    PGDATABASE: postgres
+    APP_USER_PASSWORD: app_user_password
   script:
     # db 初期化
     - uv run alembic upgrade head
@@ -75,6 +77,23 @@ verify:
 deploy:
   stage: deploy
   extends: .base
+  needs:
+    - job: verify
+      artifacts: true
+  environment:
+    name: production
+  # ---
+  # 既存の docker/compose.yml で起動済みの Postgres へ接続
+  # NOTE: 本番 DB 接続情報は GitLab CI/CD Variables で設定する（このセクションは不要）
+  variables:
+    DATABASE_URL: "postgresql+psycopg://postgres:postgres@host.docker.internal:5432/postgres"
+    PGHOST: host.docker.internal
+    PGPORT: "5432"
+    PGUSER: postgres
+    PGPASSWORD: postgres
+    PGDATABASE: postgres
+    APP_USER_PASSWORD: postgres
+  # ---
   script:
     # migration 実行
     - uv run alembic upgrade head
