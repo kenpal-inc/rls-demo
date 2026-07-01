@@ -78,6 +78,15 @@ deploy:
   script:
     # migration 実行
     - uv run alembic upgrade head
+    # RLS ポリシー設定チェック
+    - |
+      rows=$(psql -tA -f sql/check-rls-coverage.sql)
+      if [ -n "$rows" ]; then
+        echo "RLS 設定が不十分なテーブルを検出しました:" >&2
+        echo "$rows" >&2
+        exit 1
+      fi
+      echo "OK: company_seq を持つ全テーブルで RLS が有効・強制・ポリシー有り"
     # 適用 RLS ポリシーを出力
     - psql --csv -f sql/select-policies.sql | tee policies-prod.csv
     # 適用 RLS ポリシーの差分を確認
